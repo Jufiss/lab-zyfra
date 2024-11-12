@@ -1,11 +1,19 @@
-﻿public class Program
-{
-    static void Main()
-    {
-        string filePath = "state.txt";
+﻿using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Threading.Tasks;
 
-        Dictionary<string, string> state = ReadState(filePath);
+public class Program
+{
+    static async Task Main()
+    {
+        using HttpClient client = new HttpClient();
+        client.BaseAddress = new Uri("http://localhost:5217/api/");
+
+
         Console.WriteLine("Текущее состояние данных:");
+        var state = await GetState(client);
         foreach (var entry in state)
         {
             Console.WriteLine($"{entry.Key} = {entry.Value}");
@@ -22,52 +30,30 @@
 
         Console.Write($"Введите новое значение для номера {id}: ");
         string newValue = Console.ReadLine();
-        UpdateState(filePath, state, id, newValue);
+
+        await UpdateState(client, id, newValue);
     }
 
-    // обновление состояния
-    public static void UpdateState(string filePath, Dictionary<string, string> state, string id, string newValue)
+    // Метод для получения состояния с сервера
+    public static async Task<Dictionary<string, string>> GetState(HttpClient client)
     {
-        state[id] = newValue;
-        WriteState(filePath, state);
-
-        Console.WriteLine($"Изменено: {id} = {newValue}");
-        Console.WriteLine($"Сообщение для внешнего мира: {{ 'id': '{id}', 'new_value': '{newValue}' }}");
+        var response = await client.GetFromJsonAsync<Dictionary<string, string>>("State");
+        return response ?? new Dictionary<string, string>();
     }
 
-    // чтение файла состояния
-    public static Dictionary<string, string> ReadState(string filePath)
+    // Метод для обновления состояния на сервере
+    public static async Task UpdateState(HttpClient client, string id, string newValue)
     {
-        var state = new Dictionary<string, string>();
+        var response = await client.PutAsJsonAsync($"State/{id}", newValue);
 
-        if (File.Exists(filePath))
+        if (response.IsSuccessStatusCode)
         {
-            foreach (var line in File.ReadAllLines(filePath))
-            {
-                var parts = line.Split(" = ");
-                if (parts.Length == 2)
-                {
-                    state[parts[0]] = parts[1];
-                }
-            }
+            Console.WriteLine($"Изменено: {id} = {newValue}");
+            Console.WriteLine($"Сообщение для внешнего мира: {{ 'id': '{id}', 'new_value': '{newValue}' }}");
         }
         else
         {
-            Console.WriteLine("Файл состояния не найден.");
-        }
-
-        return state;
-    }
-
-    // запись состояния в файл
-    public static void WriteState(string filePath, Dictionary<string, string> state)
-    {
-        using (StreamWriter writer = new StreamWriter(filePath))
-        {
-            foreach (var entry in state)
-            {
-                writer.WriteLine($"{entry.Key} = {entry.Value}");
-            }
+            Console.WriteLine($"Ошибка: {response.ReasonPhrase}");
         }
     }
 }
