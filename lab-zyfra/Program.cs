@@ -1,50 +1,42 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Threading.Tasks;
+﻿using System.Net.Http.Json;
+using lab_zyfra;
 
 public class Program
 {
-    static async Task Main()
+    static void Main()
     {
         using HttpClient client = new HttpClient();
         client.BaseAddress = new Uri("http://localhost:5217/api/");
 
 
         Console.WriteLine("Текущее состояние данных:");
-        var state = await GetState(client);
+        var state = GetState(client);
         foreach (var entry in state)
         {
-            Console.WriteLine($"{entry.Key} = {entry.Value}");
+            Console.WriteLine($"{entry.Id} = {entry.Value}");
         }
 
         Console.Write("Введите номер для обновления: ");
         string id = Console.ReadLine();
 
-        if (!state.ContainsKey(id))
-        {
-            Console.WriteLine("Номер не найден.");
-            return;
-        }
-
         Console.Write($"Введите новое значение для номера {id}: ");
         string newValue = Console.ReadLine();
 
-        await UpdateState(client, id, newValue);
+        UpdateState(client, id, newValue);
     }
 
     // Метод для получения состояния с сервера
-    public static async Task<Dictionary<string, string>> GetState(HttpClient client)
+    public static List<State> GetState(HttpClient client)
     {
-        var response = await client.GetFromJsonAsync<Dictionary<string, string>>("State");
-        return response ?? new Dictionary<string, string>();
+        var response = client.GetFromJsonAsync<List<State>>("State").Result;
+
+        return response ?? new List<State>();
     }
 
     // Метод для обновления состояния на сервере
-    public static async Task UpdateState(HttpClient client, string id, string newValue)
+    public static void UpdateState(HttpClient client, string id, string newValue)
     {
-        var response = await client.PutAsJsonAsync($"State/{id}", newValue);
+        var response = client.PutAsJsonAsync($"State/{id}", newValue).Result;
 
         if (response.IsSuccessStatusCode)
         {
